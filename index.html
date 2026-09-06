@@ -443,6 +443,16 @@ const sfx={
 function buzz(ms){ if(navigator.vibrate){ try{navigator.vibrate(ms);}catch(e){} } }
 addEventListener("pointerdown",()=>ac(),{once:true});
 
+/* ---------- せんとう BGM（せんとう中だけ ながす） ---------- */
+const BGM=new Audio("audio/battle.mp3");
+BGM.loop=true; BGM.volume=.45; BGM.preload="auto";
+function bgmStart(){
+  if(MUTE)return;
+  try{ BGM.currentTime=0; const p=BGM.play(); if(p&&p.catch)p.catch(()=>{}); }catch(e){}
+}
+function bgmStop(){ try{ BGM.pause(); BGM.currentTime=0; }catch(e){} }
+const inBattle=()=>$("#battle").classList.contains("on");
+
 /* ---------- てき 20たい ---------- */
 const ENEMIES=[
  {n:"どろ すらいむ",   hp:45,  atk:6,  sp:52, g:30,   c:"#7fd88f", c2:"#4fae63", form:"blob",     size:1.0},
@@ -488,6 +498,7 @@ const SKILLS=[
  {id:"b3", name:"や きわみ",cat:"active",kind:"arrow",cost:3200,cd:.6,dmg:.80,spd:740,req:"b2",desc:"や を れんぞく で うてる"},
  {id:"ch", name:"ためぎり", cat:"active",kind:"charge",cost:2200,cd:6,range:135,dmg:3.6,knock:300,desc:"ためて おおきい だめーじ ＋ ふきとばし"},
  {id:"jp", name:"そらがけ", cat:"active",kind:"jump", cost:800, cd:1.8,desc:"とぶ。ゆか の こうげき を よける"},
+ {id:"gd", name:"むてき", cat:"active",kind:"guard",cost:1600,cd:7,dur:2,desc:"2びょう むてき。おわって 5びょうご に また つかえる"},
 ];
 const SK=Object.fromEntries(SKILLS.map(s=>[s.id,s]));
 
@@ -505,9 +516,14 @@ function show(id){
   screens.forEach(s=>$("#"+s).classList.toggle("on",s===id));
   const mb=$("#btnMute"); if(mb)mb.hidden=(id==="battle"||id==="train");
   document.body.style.overflow=(id==="battle")?"hidden":"";
+  if(id!=="battle")bgmStop();
 }
 function syncMute(){ $("#btnMute").textContent=MUTE?"🔇":"🔊"; }
-$("#btnMute").onclick=()=>{ MUTE=!MUTE; S.mute=MUTE; save(); syncMute(); if(!MUTE)sfx.tap(); };
+$("#btnMute").onclick=()=>{
+  MUTE=!MUTE; S.mute=MUTE; save(); syncMute();
+  if(MUTE){ bgmStop(); }
+  else { sfx.tap(); if(inBattle()&&B&&!B.over)bgmStart(); }
+};
 $("#rotSkip").onclick=()=>$("#rotate").classList.add("hide");
 
 /* ==========================================================
@@ -943,11 +959,12 @@ let B=null,raf=null,last=0;
 function startBattle(idx){
   const e=ENEMIES[idx];
   B={idx:idx,over:false,t:0,shake:0,intro:0.9,
-     p:{x:190,hp:S.maxHp,max:S.maxHp,atk:S.atk,face:1,cd:0,swing:0,air:0,charge:0,hurt:0,slow:0,run:0,pending:null},
+     p:{x:190,hp:S.maxHp,max:S.maxHp,atk:S.atk,face:1,cd:0,swing:0,air:0,charge:0,hurt:0,slow:0,run:0,inv:0,pending:null},
      e:{x:810,hp:e.hp,max:e.hp,atk:e.atk,sp:e.sp,face:-1,cd:0,swing:0,think:.6,hurt:0,tier:idx,data:e},
      cds:{},shots:[],drops:[],waves:[],pops:[],fx:[],logs:[]};
   $("#eName").textContent=e.n;
   buildSkillBar(); show("battle"); fitCanvas(); pushLog(e.n+" が あらわれた！");
+  bgmStart();
   last=performance.now(); if(raf)cancelAnimationFrame(raf);
   raf=requestAnimationFrame(loop);
 }
@@ -1006,6 +1023,8 @@ function useSkill(s){
   }else if(s.kind==="drop"){
     B.drops.push({x:B.e.x,t:.55,max:.55,dmg:p.atk*s.dmg,own:"p"});
   }else if(s.kind==="jump"){ p.air=.66;
+  }else if(s.kind==="guard"){ p.inv=s.dur; pushLog("むてき！ 2びょう");
+    for(let i=0;i<18;i++)B.fx.push({x:p.x+(Math.random()-.5)*80,y:GY-Math.random()*110,vx:0,vy:-60,l:1,col:"#bff0ff",r:6});
   }else if(s.kind==="charge"){ p.charge=.85;p.pending=s; }
 }
 function releaseCharge(){
@@ -1023,6 +1042,11 @@ function hitCheck(cxp,len,dmg,knock,own){
   }
 }
 function damage(t,d,own){
+  if(t===B.p&&B.p.inv>0){
+    pop(B.p.x,"ガード","#7ec8f2");
+    for(let i=0;i<8;i++)B.fx.push({x:B.p.x+(Math.random()-.5)*70,y:GY-60-Math.random()*40,vx:0,vy:-50,l:.8,col:"#bff0ff",r:6});
+    return;
+  }
   d=Math.max(1,Math.round(d));
   t.hp-=d;t.hurt=.22;B.shake=Math.min(16,4+d/30);
   sfx.hit(); buzz(own==="p"?12:22);
@@ -1070,6 +1094,7 @@ function step(dt){
   for(const k in B.cds)B.cds[k]=Math.max(0,B.cds[k]-dt);
   p.cd=Math.max(0,p.cd-dt); p.hurt=Math.max(0,p.hurt-dt);
   p.air=Math.max(0,p.air-dt); p.slow=Math.max(0,p.slow-dt);
+  p.inv=Math.max(0,p.inv-dt);
   p.swing=Math.max(0,p.swing-dt*5);
   e.cd=Math.max(0,e.cd-dt); e.hurt=Math.max(0,e.hurt-dt); e.swing=Math.max(0,e.swing-dt*5);
   B.shake*=.86;
@@ -1183,6 +1208,13 @@ function drawBattle(){
   drawHero(c,p.x,GY,{t:t,sc:1.2,face:p.face,swing:p.swing,run:p.run,jump:jumpH,hurt:p.hurt,charge:p.charge,blink:blink});
   if(p.slow>0){c.save();c.globalAlpha=.55;c.strokeStyle="#a78bd8";c.lineWidth=6;
     c.beginPath();c.ellipse(p.x,GY-6,46,14,0,0,Math.PI*2);c.stroke();c.restore();}
+  if(p.inv>0){
+    c.save();
+    c.globalAlpha=.16+Math.sin(t*18)*.06;c.fillStyle="#bfe9ff";circle(c,p.x,GY-52,54);c.fill();
+    c.globalAlpha=.7+Math.sin(t*18)*.25;c.strokeStyle="#7ec8f2";c.lineWidth=5;circle(c,p.x,GY-52,54);c.stroke();
+    c.globalAlpha=.9;c.strokeStyle="#fff";c.lineWidth=2;circle(c,p.x,GY-52,54);c.stroke();
+    c.restore();
+  }
 
   B.fx.forEach(function(f){
     if(f.slash){
@@ -1211,6 +1243,7 @@ function drawBattle(){
 
 function finish(win){
   if(B.over)return; B.over=true;
+  bgmStop();
   const e=ENEMIES[B.idx];
   if(win){
     sfx.win();
