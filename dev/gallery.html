@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><base href="../"><title>gallery</title>
+<style>body{margin:0;background:#bfe6ff;font-family:sans-serif}canvas{display:block}</style></head>
+<body>
+<canvas id="cv" width="1200" height="760"></canvas>
+<script src="js/core.js"></script>
+<script src="js/art.js"></script>
+<script>
+const cv=document.getElementById("cv"),c=cv.getContext("2d");
+const dpr=Math.min(2,devicePixelRatio||1); cv.width=1200*dpr; cv.height=760*dpr; cv.style.width="1200px"; cv.style.height="760px";
+const params=new URLSearchParams(location.search);
+let T=+(params.get("t")||0.4);
+function frame(){
+  c.setTransform(dpr,0,0,dpr,0,0);
+  if(params.get("solo")){
+    c.fillStyle="#bfe6ff"; c.fillRect(0,0,1200,760); c.fillStyle="#8ed08a"; c.fillRect(0,700,1200,60);
+    const st=params.get("solo"), sc=+(params.get("sc")||5);
+    const o={t:T,state:st,sc,rank:+(params.get("rank")||1),swing:+(params.get("swing")||0),swingType:+(params.get("ty")||0),tw:1,aura:st==="charge"};
+    drawHero(c,+(params.get("x")||600),700,o);
+    if(params.get("bust")){ drawHeroBust(c,300,380,4,{expr:params.get("bust"),t:T}); }
+    return;
+  }
+  c.fillStyle="#bfe6ff"; c.fillRect(0,0,1200,760);
+  c.fillStyle="#8ed08a"; c.fillRect(0,220,1200,30); c.fillRect(0,470,1200,30); c.fillRect(0,720,1200,40);
+  const states=[["idle"],["run"],["atk",{swing:.8,swingType:0}],["atk",{swing:.3,swingType:0}],["atk",{swing:.5,swingType:1}],["atk",{swing:.5,swingType:2}],["jump"],["hurt"]];
+  states.forEach((s,i)=>{ drawHero(c,80+i*145,220,Object.assign({t:T,state:s[0],sc:1.25,rank:(i%6)},s[1]||{})); c.fillStyle="#333"; c.fillText(s[0]+" r"+(i%6),50+i*145,240); });
+  const st2=[["charge"],["dash"],["finish"],["win",{tw:1}],["lose"],["cheer"]];
+  st2.forEach((s,i)=>{ drawHero(c,80+i*145,470,Object.assign({t:T,state:s[0],sc:1.25,rank:5-(i%6),aura:s[0]==="charge"},s[1]||{})); c.fillStyle="#333"; c.fillText(s[0],50+i*145,490); });
+  drawHero(c,1000,470,{t:T,state:"idle",sc:2.2,rank:2});
+  for(let r=0;r<6;r++){ c.save(); c.translate(60+r*150,560); c.scale(1.6,1.6); drawSword(c,r,66,T); c.restore(); }
+  drawHeroBust(c,1060,640,1.3,{expr:"shout",t:T});
+  drawDummy(c,960,720,T,0);
+  drawBang(c,860,650,1,T);
+  drawCoin(c,800,650,14,T);
+}
+frame();
+if(params.get("anim")){ (function loop(){ T+=1/60; frame(); requestAnimationFrame(loop); })(); }
+</script>
+</body></html>

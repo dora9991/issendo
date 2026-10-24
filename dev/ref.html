@@ -1,0 +1,9 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><base href="../"><style>body{margin:0;background:#fff}</style></head><body>
+<canvas id="cv" width="1200" height="760"></canvas>
+<script src="js/core.js"></script><script src="js/art.js"></script>
+<script>
+const cv=document.getElementById("cv"),c=cv.getContext("2d");
+c.fillStyle="#ffffff";c.fillRect(0,0,1200,760);
+drawHero(c,300,720,{t:.4,state:"idle",sc:4.6,rank:2,face:1});
+drawHero(c,860,720,{t:.4,state:"atk",swing:.35,swingType:0,sc:4.0,rank:2,face:1});
+</script></body></html>

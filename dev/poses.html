@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><base href="../"><title>poses</title>
+<style>body{margin:0;background:#cfe8ff;font-family:sans-serif}canvas{display:block}</style></head>
+<body>
+<canvas id="cv"></canvas>
+<script src="js/core.js?v=dev"></script>
+<script src="js/art.js?v=dev"></script>
+<script>
+/* ポーズ の おおきさ・あしもと・けん の いち を そろえる ための がめん */
+const cv=document.getElementById("cv"),c=cv.getContext("2d");
+const W=1500,H=560; cv.width=W*2; cv.height=H*2; cv.style.width=W+"px"; cv.style.height=H+"px";
+const ids=Object.keys(POSE_META);
+ids.forEach(uiImg);
+const q=new URLSearchParams(location.search), sc=+(q.get("sc")||1.6), rank=+(q.get("rank")||3);
+function frame(){
+  c.setTransform(2,0,0,2,0,0); c.fillStyle="#cfe8ff"; c.fillRect(0,0,W,H);
+  const gy=[250,530];
+  c.strokeStyle="#6a8"; c.lineWidth=2; gy.forEach(y=>{c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();});
+  /* あたま の たかさ の めやす せん */
+  c.strokeStyle="rgba(200,0,0,.35)"; gy.forEach(y=>{ c.beginPath(); c.moveTo(0,y-112*sc); c.lineTo(W,y-112*sc); c.stroke(); });
+  ids.forEach((id,i)=>{
+    const row=i<7?0:1, col=i<7?i:i-7, x=110+col*205, y=gy[row];
+    const st={h_idle:"idle",h_run:"run",h_run2:"run",h_slash1:"atk",h_slash2:"atk",h_thrust:"atk",h_jump:"jump",h_hurt:"hurt",h_charge:"charge",h_dash:"dash",h_finish:"finish",h_lose:"lose",hero_win:"win"}[id];
+    const ty={h_slash1:0,h_slash2:1,h_thrust:2}[id]||0;
+    const o={t:0,state:st,swingType:ty,swing:0,sc,rank,face:1};
+    if(id==="h_run2")o.t=1/9+.001;
+    const ok=drawHeroSprite(c,x,y,o);
+    c.fillStyle="#c00"; c.fillRect(x-3,y-3,6,6);
+    c.fillStyle="#333"; c.font="12px sans-serif"; c.fillText(id+(ok?"":" (なし)"),x-40,y+16);
+  });
+}
+setInterval(frame,200);
+</script>
+</body></html>

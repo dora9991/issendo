@@ -1,2 +1,5 @@
 .DS_Store
 *.log
+art-work/raw/
+art-work/logs/
+art-work/sheets/
