@@ -94,6 +94,7 @@ addEventListener("keydown",e=>{
     else if((k==="z"||k==="Z"||k===" "||k==="j")&&!e.repeat)Battle.attack();
     else if((k==="z"||k==="Z"||k===" "||k==="j")&&e.repeat)Battle.attack();
     else if(k==="x"||k==="X"||k==="k")Battle.useUlt();
+    else if(k==="c"||k==="C"||k==="l")Battle.useWaza();
     else if(k==="ArrowUp"){ const s=activeSkills().find(s=>s.kind==="jump"); if(s)Battle.useSkill(s); }
     else if(k==="Escape"||k==="p")Battle.pause();
     else { const n=parseInt(k,10); if(n>=1&&n<=9){ const L=activeSkills(); if(L[n-1])Battle.useSkill(L[n-1]); } }
@@ -110,6 +111,7 @@ addEventListener("keyup",e=>{
 
 /* ---------- がめん が かくれた とき ---------- */
 document.addEventListener("visibilitychange",()=>{
+  if(MUTE_ALL)return;   /* かくにん よう（?mute=1）の とき は とめない */
   if(document.hidden){
     if(CUR==="battle"&&Battle.B&&Battle.B.phase!=="ko"&&Battle.B.phase!=="lose")Battle.pause();
     Music.pause();

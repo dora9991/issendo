@@ -57,7 +57,7 @@ const UI={
   /* ---------------- メニュー ---------------- */
   renderMenu(bumpKey){
     $("#sHp").textContent=S.maxHp; $("#sAtk").textContent=S.atk;
-    $("#sGold").textContent=S.gold; $("#sClear").textContent=S.cleared+"/"+ENEMIES.length;
+    $("#sGold").textContent=S.gold; $("#sClear").textContent=S.cleared+"/"+goalN();
     if(bumpKey){ const el=$(bumpKey); el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
     const m=Train.mult();
     $("#dSuburi").textContent="こうげき ＋"+m+"〜"+m*2;
@@ -65,14 +65,15 @@ const UI={
     const r=swordRank(S.atk);
     $("#swordTag").textContent="⚔️ "+SWORDS[r].name+(r<SWORDS.length-1?"（こうげき "+SWORDS[r+1].min+" で しんか）":"（さいきょう！）");
     const zn=Object.keys(S.zukan).length;
-    $("#dZukan").textContent=zn+"/"+ENEMIES.length+" たい";
-    const canBuy=SKILLS.some(s=>!has(s.id)&&(!s.req||has(s.req))&&S.gold>=s.cost);
+    $("#dZukan").textContent=zn+"/"+goalN()+" たい";
+    const canBuy=SKILLS.some(s=>!has(s.id)&&(!s.req||has(s.req))&&(!s.w2||world2Open())&&S.gold>=s.cost);
     $("#shopDot").hidden=!canBuy; $("#shopDot").textContent="かえる！";
     const next=ENEMIES[Math.min(S.cleared,ENEMIES.length-1)];
     const ch=chanceOf(next);
     $("#dFight").textContent=S.cleared>=ENEMIES.length?"ぜんぶ たおした！ また たたかえる":"つぎ："+next.n+"　"+ch.f+" "+ch.t;
     let talk;
-    if(S.cleared>=ENEMIES.length)talk="ぜんぶ たおした！ きみ は さいきょう の けんし だ！";
+    if(S.cleared>=ENEMIES.length)talk="40たい ぜんぶ たおした！ きみ は でんせつ の けんし だ！";
+    else if(S.cleared===MAIN)talk="うら の せかい が ひらいた！ もっと つよい てき が いる ぞ！";
     else if(S.cleared===0&&S.atk<=9)talk="まずは「すぶり」で つよく なろう！";
     else if(canBuy)talk="おかね が たまった！「わざ」を おぼえよう！";
     else if(ch.k==="no")talk="つぎ の てき は すごく つよい… とっくん だ！";
@@ -88,12 +89,15 @@ const UI={
     const open=Math.min(ENEMIES.length,S.cleared+1);
     const openStage=Math.floor((open-1)/4);
     if(UI.pickStage>openStage)UI.pickStage=openStage;
-    $("#stageTabs").innerHTML=STAGES.map((st,i)=>{
+    const nTabs=world2Open()?STAGES.length:5;
+    $("#stageTabs").innerHTML=STAGES.slice(0,nTabs).map((st,i)=>{
       const lock=i>openStage;
       let got=0; for(let k=0;k<4;k++){ const z=S.zukan[i*4+k]; if(z)got+=z.s; }
       const clear=S.cleared>=(i+1)*4;
-      return '<button class="tab'+(i===UI.pickStage?" on":"")+(lock?" lock":"")+(clear?" clr":"")+'" data-st="'+i+'"><span class="n">すてーじ '+(i+1)+(lock?"":"　★"+got+"/12")+'</span>'+(lock?"🔒 ？？？":(clear?"👑 ":"")+esc(st.name))+'</button>';
+      return '<button class="tab'+(i===UI.pickStage?" on":"")+(lock?" lock":"")+(clear?" clr":"")+(st.w2?" w2":"")+'" data-st="'+i+'"><span class="n">すてーじ '+(i+1)+(lock?"":"　★"+got+"/12")+'</span>'+(lock?"🔒 ？？？":(clear?"👑 ":"")+esc(st.name))+'</button>';
     }).join("");
+    const onTab=$("#stageTabs .tab.on");
+    if(onTab)requestAnimationFrame(()=>{ try{ onTab.scrollIntoView({inline:"center",block:"nearest"}); }catch(e){} });
     $$("#stageTabs .tab").forEach(b=>b.onclick=()=>{
       const i=+b.dataset.st; if(i>openStage){ sfx.bonk(); toast("まえ の ぼす を たおす と ひらく よ"); return; }
       sfx.tap(); UI.pickStage=i; UI.renderPick();
@@ -129,6 +133,7 @@ const UI={
       const owned=has(s.id), need=s.req&&!has(s.req), poor=S.gold<s.cost;
       let cls,foot;
       if(owned){ cls="owned"; foot='<span class="pill have">✔ もっている</span>'; }
+      else if(s.w2&&!world2Open()){ cls="no"; foot='<span class="pill grey">🔒 20たい たおす と かえる</span>'; }
       else if(need){ cls="no"; foot='<span class="pill grey">🔒 さきに「'+esc(SK[s.req].name)+'」</span>'; }
       else if(poor){ cls="no"; foot='<span class="pill grey">💰 '+s.cost+' えん（あと '+(s.cost-S.gold)+'）</span>'; }
       else { cls="can"; foot='<button class="buyBtn" data-buy="'+s.id+'">かう！ '+s.cost+' えん</button>'; }
@@ -147,10 +152,10 @@ const UI={
   /* ---------------- ずかん ---------------- */
   renderZukan(){
     const n=Object.keys(S.zukan).length;
-    $("#zukanCount").textContent="📖 "+n+"/"+ENEMIES.length;
-    $("#zukanGrid").innerHTML=ENEMIES.map((e,i)=>{
+    $("#zukanCount").textContent="📖 "+n+"/"+goalN();
+    $("#zukanGrid").innerHTML=ENEMIES.slice(0,goalN()).map((e,i)=>{
       const z=S.zukan[i];
-      return '<div class="zc'+(z?"":" lock")+(e.boss?" boss":"")+'" data-i="'+i+'"><div class="zi"><img src="'+enemyThumb(e)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'"></div>'+
+      return '<div class="zc'+(z?"":" lock")+(e.boss?" boss":"")+(e.w2?" w2":"")+'" data-i="'+i+'"><div class="zi"><img src="'+enemyThumb(e)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'"></div>'+
         '<div class="zn">'+(z?esc(e.n):"No."+(i+1)+" ？？？")+'</div><div class="zs">'+(z?"★".repeat(z.s)+"☆".repeat(3-z.s):"")+'</div></div>';
     }).join("");
     $$("#zukanGrid .zc").forEach(el=>el.onclick=()=>{
@@ -167,7 +172,7 @@ const UI={
 
   /* ---------------- せってい ---------------- */
   renderToggles(){
-    const items=[["bgm","🎵 おんがく"],["se","🔔 こうかおん"],["voice","🗣️ こえ"]];
+    const items=[["bgm","🎵 おんがく"],["se","🔔 こうかおん"],["voice","🗣️ こえ"],["matome","🎮 ボタン を まとめる"]];
     $$(".toggles").forEach(box=>{
       box.innerHTML=items.map(([k,l])=>'<button class="tgl '+(S[k]?"on":"off")+'" data-tgl="'+k+'">'+l+'</button>').join("");
       box.querySelectorAll("[data-tgl]").forEach(b=>b.onclick=()=>{
@@ -175,6 +180,7 @@ const UI={
         if(k==="se"&&S.se)sfx.tap();
         if(k==="voice"&&S.voice)Voice.say("こえ おん！");
         if(k==="bgm"){ if(S.bgm){ const sg=songFor(CUR); if(sg)Music.play(sg); else Music.resume(); } }
+        if(k==="matome"&&Battle.B)UI.applyCtrl();
       });
     });
     $("#btnRestore").hidden=!Store.get(BAK_KEY);
@@ -202,7 +208,15 @@ const UI={
     $("#skillBar").innerHTML=L.map((s,i)=>'<button class="sk" data-sk="'+s.id+'"><span class="key">'+(i+1)+'</span><span class="i">'+s.icon+'</span><span class="n">'+esc(s.name)+'</span><span class="cd" id="cd_'+s.id+'"></span><span class="cs" id="cs_'+s.id+'"></span></button>').join("");
     $$("#skillBar [data-sk]").forEach(b=>b.addEventListener("pointerdown",ev=>{ ev.preventDefault(); Battle.useSkill(SK[b.dataset.sk]); }));
     $("#btnUlt").classList.remove("ready"); $("#ultFill").style.height="0%";
+    UI.applyCtrl();
     UI.cine(true);
+  },
+  /* ボタン を まとめる か ばらばら か */
+  applyCtrl(){
+    const bt=$("#battle");
+    bt.classList.toggle("matome",!!S.matome); bt.classList.toggle("barabara",!S.matome);
+    bt.classList.toggle("nowaza",!activeSkills().length);
+    UI._hud.atk=null; UI._hud.waza=null;
   },
   battleHud(B){
     const p=B.p,en=B.en,h=UI._hud;
@@ -213,9 +227,25 @@ const UI={
     if(h.ehp!==en.hp){ h.ehp=en.hp; const k=en.hp/en.max*100;
       $("#eFill").style.width=k+"%"; $("#eChip").style.width=k+"%"; $("#eHpTxt").textContent=en.hp+"/"+en.max; }
     const g=Math.floor(p.gauge);
-    if(h.g!==g){ h.g=g; $("#ultFill").style.height=g+"%"; $("#btnUlt").classList.toggle("ready",g>=100); }
+    if(h.g!==g){ h.g=g; $("#ultFill").style.height=g+"%"; $("#btnUlt").classList.toggle("ready",g>=100);
+      $("#atkRing").style.setProperty("--g",g); $(".atkWrap").classList.toggle("full",g>=100); }
+    const ultOn=!!S.matome&&g>=100&&B.phase==="fight";
+    if(h.atk!==ultOn){ h.atk=ultOn; $("#padA").classList.toggle("ultOn",ultOn); $("#atkTxt").textContent=ultOn?"ひっさつ！":"きる！"; }
+    if(S.matome){
+      const w=Battle.pickWaza(), key=w?w.s.id+(w.urgent?"!":""):"";
+      let cdTxt="";
+      if(!w){ let m=99; for(const s of activeSkills()){ const l=B.cds[s.id]||0; if(l>0&&l<m)m=l; } cdTxt=m<99?String(Math.ceil(m)):""; }
+      const k2=key+"|"+cdTxt;
+      if(h.waza!==k2){ h.waza=k2; const bw=$("#btnWaza");
+        bw.classList.toggle("off",!w); bw.classList.toggle("urgent",!!(w&&w.urgent));
+        if(w)$("#wazaIcon").textContent=w.s.icon;
+        $("#wazaCd").textContent=cdTxt; }
+    }
+    const low=p.hp>0&&p.hp<p.max*.4;
+    if(h.low!==low){ h.low=low; }
     for(const s of activeSkills()){
       const left=B.cds[s.id]||0, k=Math.round(left/s.cd*100);
+      if(s.kind==="heal"){ const want=low&&left<=0&&B.phase==="fight"; if(h.healCue!==want){ h.healCue=want; const el=document.querySelector('#skillBar [data-sk="'+s.id+'"]'); if(el)el.classList.toggle("cue",want); } }
       if(h.cds[s.id]!==k){ h.cds[s.id]=k;
         const cd=document.getElementById("cd_"+s.id), cs=document.getElementById("cs_"+s.id);
         if(cd)cd.style.transform="scaleY("+(k/100)+")";
@@ -238,9 +268,10 @@ const UI={
     if(n%5===0)sfx.combo(n);
   },
   ultReady(){
-    if(!S.tut.ult)setTimeout(()=>{ if(Battle.B&&Battle.ultReady())hint($("#btnUlt"),"ひっさつ を おして！","ult"); },200);
+    if(!S.tut.ult)setTimeout(()=>{ if(Battle.B&&Battle.ultReady())hint(S.matome?$("#padA"):$("#btnUlt"),S.matome?"にじいろ に なったら おして！ ひっさつ！":"ひっさつ を おして！","ult"); },200);
   },
   tutorial(){
+    if(S.matome&&!S.tut.waza&&activeSkills().length){ setTimeout(()=>{ if(CUR==="battle"&&!S.tut.waza)hint($("#btnWaza"),"わざ！ で わざ が でる よ","waza"); },600); }
     if(!S.tut.move){ hint($("#padR"),"▶ で すすもう","move"); }
     if(!S.tut.atk){ setTimeout(()=>{ if(CUR==="battle"&&!S.tut.atk)hint($("#padA"),"きる！ で こうげき","atk"); },S.tut.move?0:1400); }
   },
@@ -267,8 +298,9 @@ const UI={
       if(r.combo>=5)bs.push(["さいだい "+r.combo+" れんげき",""]);
       if(r.ults>0)bs.push(["ひっさつ "+r.ults+" かい",""]);
       if(r.first&&r.idx+1<ENEMIES.length)bs.push([(ENEMIES[r.idx+1].boss?"👑 ぼす":"つぎ の てき")+" が あらわれた！",""]);
-      if(r.first&&r.idx===ENEMIES.length-1)bs.push(["🎉 ぜんぶ クリア！ おめでとう！","gold"]);
-      if(r.first&&(r.idx+1)%4===0&&r.idx+1<ENEMIES.length)bs.push(["あたらしい すてーじ が ひらいた！","gold"]);
+      if(r.first&&r.idx===ENEMIES.length-1)bs.push(["🎉 40たい ぜんぶ クリア！ でんせつ の けんし！","gold"]);
+      if(r.first&&r.idx===MAIN-1)bs.push(["🎉 20たい クリア！ うら の せかい が ひらいた！","gold"]);
+      if(r.first&&(r.idx+1)%4===0&&r.idx+1<ENEMIES.length&&r.idx!==MAIN-1)bs.push(["あたらしい すてーじ が ひらいた！","gold"]);
       openVeil("veilRes");
       for(let i=0;i<3;i++)setTimeout(()=>{ if(i<r.stars){ stars[i].className="got"; sfx.star(i); } },350+i*330);
       const t0=performance.now()+1300, dur=900;
@@ -298,16 +330,27 @@ const UI={
     if(S.lastDay===today)return;
     const brandNew=!S.lastDay&&S.cleared===0&&!S.wins;
     S.lastDay=today;
-    const g=brandNew?0:50+25*S.cleared;
+    const g=brandNew?0:Math.max(50+25*S.cleared,Math.round(ENEMIES[Math.min(S.cleared,ENEMIES.length-1)].g*.25/10)*10);
     if(!g){ save(); return; }
     S.gold+=g; save();
     $("#dailyGold").textContent="+"+g+" えん";
     setTimeout(()=>{ openVeil("veilDaily"); sfx.ready(); },500);
     $("#dailyOk").onclick=()=>{ sfx.buy(); closeVeil("veilDaily"); UI.renderMenu("#sGold"); };
   },
-  ending(then){
+  ending(mode,then){
     $("#endImg").src="img/ui/hero_win.webp";
-    openVeil("veilEnd"); Music.jingle("evolve",()=>Music.play("title")); Voice.say("やったー！ ぜんぶ クリア！");
+    if(mode==="true"){
+      $("#endT").textContent="しん エンディング！";
+      $("#endP1").innerHTML="むげん の まおう ぜろ を たおして、<br>ほんとう の へいわ が もどった！";
+      $("#endP2").textContent="40たい ぜんぶ たおした きみ は、でんせつ の けんし だ！ ずかん の ★ を ぜんぶ あつめよう。";
+      Voice.say("やったー！ でんせつ の けんし だ！");
+    }else{
+      $("#endT").textContent="ぜんぶ クリア！";
+      $("#endP1").innerHTML="めいおう のくす を たおした！<br>…でも、もっと つよい やみ が いた！";
+      $("#endP2").textContent="「うら の せかい」が ひらいた！ いろ の ちがう つよい てき が 20たい まって いる。あたらしい わざ も かえる よ！";
+      Voice.say("やったー！ ぜんぶ クリア！");
+    }
+    openVeil("veilEnd"); Music.jingle("evolve",()=>Music.play("title"));
     $("#endOk").onclick=()=>{ sfx.tap(); closeVeil("veilEnd"); if(then)then(); };
   },
 
@@ -319,8 +362,10 @@ const UI={
     $("#trainHelp").textContent=T.kind==="suburi"?"がめん を たくさん たっぷ！ 15かい で ぼーなす":"たっぷ で じゃんぷ！ 3かい とべたら ぼーなす";
     $("#trainHelp").classList.remove("shake");
     $("#trainRes").hidden=true; $("#btnSkip").hidden=false; $("#trainHelp").hidden=false;
+    $("#btnSkip").disabled=false; $("#btnSkip").textContent="はやおくり ▶▶";
   },
   trainBar(k){ $("#tbarFill").style.width=(k*100)+"%"; },
+  trainFF(){ const b=$("#btnSkip"); b.disabled=true; b.textContent="はやおくり ちゅう…"; $("#trainHelp").textContent="はやおくり ちゅう（ぼーなす は なし）"; },
   trainCount(n){ const el=$("#trainCount"); el.textContent=n; el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); },
   trainHint(){ const el=$("#trainHelp"); el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); },
   trainResult(r){
@@ -329,7 +374,7 @@ const UI={
     let b="";
     if(r.bonus)b+="🎉 "+(r.kind==="suburi"?"れんだ":"じゃんぷ")+" ぼーなす ×2！ ";
     if(r.mult>1)b+="⭐ たおした てき の ぶん ×"+r.mult;
-    if(!b)b=r.kind==="suburi"?"たっぷ 15かい で ぼーなす だよ！":"3かい じゃんぷ で ぼーなす だよ！";
+    if(!r.bonus)b=(r.skipped?"はやおくり は ぼーなす なし。":"")+(r.kind==="suburi"?"たっぷ 15かい で ぼーなす ×2 だよ！":"3かい じゃんぷ で ぼーなす ×2 だよ！")+(r.mult>1?"（⭐ ×"+r.mult+"）":"");
     $("#trainBonus").textContent=b;
     $("#trainRes").hidden=false; $("#trainHelp").hidden=true;
     UI._bump=r.kind==="suburi"?"#sAtk":"#sHp";
@@ -450,6 +495,7 @@ function wireUI(){
   hold($("#padL"),"l"); hold($("#padR"),"r");
   $("#padA").addEventListener("pointerdown",e=>{ e.preventDefault(); Battle.attack(); });
   $("#btnUlt").addEventListener("pointerdown",e=>{ e.preventDefault(); if(Battle.ultReady())Battle.useUlt(); else { sfx.bonk(); if(Battle.B&&Battle.B.phase==="fight")toast("てき を きる と たまる よ！",1100); } });
+  $("#btnWaza").addEventListener("pointerdown",e=>{ e.preventDefault(); if(!Battle.useWaza()&&Battle.B&&Battle.B.phase==="fight"&&!S.tut.wazaNote){ S.tut.wazaNote=1; toast("ひかって いる とき に おす と でる よ",1300); } });
   $("#btnPause").onclick=()=>{ sfx.tap(); Battle.pause(); };
   $("#battle").addEventListener("pointerdown",e=>{ if(!e.target.closest("button"))Battle.skipIntro(); });
   $("#btnResume").onclick=()=>{ sfx.tap(); closeVeil("veilPause"); Battle.resume(); };

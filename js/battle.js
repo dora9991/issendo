@@ -4,9 +4,12 @@
    ========================================================== */
 /* てき ごと の とびどうぐ の みため */
 const SHOT_KIND={e05:"bone",e06:"rock",e07:"fire",e08:"star",e09:"web",e10:"ice",e11:"beam",e12:"bolt",e13:"ghost",e14:"fire",
-  e15:"beam",e16:"poison",e17:"light",e18:"bolt",e19:"fire",e20:"dark"};
+  e15:"beam",e16:"poison",e17:"light",e18:"bolt",e19:"fire",e20:"dark",
+  /* うら の せかい */
+  e21:"star",e22:"dark",e23:"rock",e24:"fire",e25:"bone",e26:"rock",e27:"bfire",e28:"star",e29:"fire",e30:"light",
+  e31:"beam",e32:"dark",e33:"ghost",e34:"ice",e35:"beam",e36:"light",e37:"fire",e38:"fire",e39:"dark",e40:"dark"};
 const SHOT_COL={bone:"#fff8ea",rock:"#b9a58a",fire:"#ff8a3c",star:"#ffd23f",web:"#b8f07a",ice:"#bff0ff",beam:"#ffe27a",bolt:"#fff27a",
-  ghost:"#d9c8ff",poison:"#9be86a",light:"#fff6c8",dark:"#c27bff",orb:"#ff9fbc"};
+  ghost:"#d9c8ff",poison:"#9be86a",light:"#fff6c8",dark:"#c27bff",orb:"#ff9fbc",bfire:"#6fd3ff"};
 const HIT_WORDS=["ばしっ！","ずばっ！","ざしゅっ！","すぱっ！","どかっ！"];
 
 const Battle=(()=>{
@@ -36,7 +39,7 @@ const Battle=(()=>{
     keys.l=keys.r=false;
     UI.battleSetup(B);
     show("battle");
-    Music.play(e.boss?(idx===ENEMIES.length-1?"final":"boss"):"battle");
+    Music.play(e.boss?(idx===ENEMIES.length-1?"shin":idx===MAIN-1?"final":"boss"):"battle");
     if(e.boss)setTimeout(()=>{ if(B&&B.phase==="intro")sfx.alarm(); },80);
     else sfx.whoosh();
   }
@@ -46,7 +49,10 @@ const Battle=(()=>{
   function canAct(){ return B&&B.phase==="fight"&&!B.paused; }
   function attack(){
     if(!canAct())return;
-    const p=B.p; if(p.cd>0||p.charge>0)return;
+    const p=B.p;
+    if(S.matome&&p.gauge>=100&&p.charge<=0){ useUlt(); return; }   /* まとめ ボタン：にじいろ の きる！ は ひっさつ */
+    if(p.cd>0||p.charge>0)return;
+    if(!keys.l&&!keys.r){ const d=B.en.x-p.x; if(d)p.face=Math.sign(d); }   /* うごいて いない とき は てき の ほう を むいて きる */
     p.cd=.55; p.swing=1; p.swingType=p.step%3; p.step++;
     sfx.swing(p.swingType===1);
     const reach=p.x+p.face*46;
@@ -94,7 +100,10 @@ const Battle=(()=>{
       dmgNum(fx,p.x,GY-150,"+"+v,{c1:"#e8fff4",c2:"#2fd18f",size:40});
       onoma(fx,p.x,GY-190,"げんき！",{size:34,grad:["#e8fff4","#2fd18f"],rot:0});
     }else if(s.kind==="drop"){
-      B.drops.push({x:B.en.x,t:.55,max:.55,dmg:p.atk*s.dmg,own:"p",kind:"sword"}); sfx.charge();
+      const n=s.multi||1;
+      for(let i=0;i<n;i++){ const off=n>1?(i-(n-1)/2)*(30+B.ehw*.3):0, tt=.55+i*.12;
+        B.drops.push({x:clamp(B.en.x+off,B.L+20,B.R-20),t:tt,max:tt,dmg:p.atk*s.dmg,own:"p",kind:"sword"}); }
+      sfx.charge();
     }else if(s.kind==="jump"){
       if(p.air>0)return;
       p.air=.66; sfx.jump(); Burst.dust(fx,p.x,GY,p.face,8);
@@ -114,6 +123,37 @@ const Battle=(()=>{
     fx.add({k:"ring",x:cxp,y:GY-60,r0:30,r1:200,life:.45,col:"#ffd23f",w:16,add:true});
     B.shake=Math.max(B.shake,16); sfx.boom();
     onoma(fx,cxp,GY-190,"ずどーん！",{size:62,grad:["#fff3a0","#ff5a2e"]});
+  }
+
+  /* ---------- わざ！ ボタン（いま いちばん いい わざ を えらぶ） ---------- */
+  function pickWaza(){
+    if(!B||B.phase!=="fight")return null;
+    const p=B.p,en=B.en,d=en.x-p.x,ad=Math.abs(d);
+    const L=activeSkills().filter(s=>!(B.cds[s.id]>0));
+    if(!L.length)return null;
+    const k=kind=>L.find(s=>s.kind===kind), fam=f=>L.find(s=>s.fam===f);
+    const heal=k("heal"); if(heal&&p.hp<p.max*.5)return {s:heal,urgent:true};
+    const gd=k("guard"); if(gd&&en.act&&ad<180+B.ehw)return {s:gd,urgent:true};
+    const jp=k("jump");
+    if(jp&&p.air<=0&&(B.shots.some(o=>o.own==="e"&&Math.sign(p.x-o.x)===Math.sign(o.vx)&&Math.abs(o.x-p.x)<170)||
+       B.waves.some(w=>Math.sign(p.x-w.x)===Math.sign(w.vx)&&Math.abs(w.x-p.x)<170)))return {s:jp,urgent:true};
+    const tol=20+B.ehw*.5, reach=s=>ad<=s.range+12+tol;
+    const ch=k("charge"); if(ch&&reach(ch)&&!en.act)return {s:ch};
+    const dr=fam("drop"); if(dr)return {s:dr};
+    for(const f of ["k","r","sw"]){ const s=fam(f); if(s&&reach(s))return {s}; }
+    const ar=fam("b"); if(ar&&ad>40)return {s:ar};
+    if(heal&&p.hp<p.max*.85)return {s:heal};
+    if(gd&&en.act)return {s:gd};
+    return null;
+  }
+  function useWaza(){
+    if(!canAct())return false;
+    const w=pickWaza();
+    if(!w){ sfx.bonk(); return false; }
+    const p=B.p, d=B.en.x-p.x; if(d&&w.s.kind!=="heal"&&w.s.kind!=="guard")p.face=Math.sign(d);
+    useSkill(w.s);
+    UI.hintDone("waza");
+    return true;
   }
 
   /* ---------- ひっさつ いっせん ---------- */
@@ -180,12 +220,12 @@ const Battle=(()=>{
     const en=B.en,p=B.p,GY=View.GY,e=B.e;
     if(en.hp<=0)return;
     let d=Math.max(1,Math.round(dmg)), crit=false;
-    if(o.crit&&Math.random()<.1){ d*=2; crit=true; }
+    if(o.crit&&Math.random()<(has("cr")?.2:.1)){ d*=2; crit=true; }
     en.hp=Math.max(0,en.hp-d); en.hurt=.25; en.flash=1;
     B.hits++;
     if(B.t-B.comboT<1.6)B.combo++; else B.combo=1;
     B.comboT=B.t; B.maxCombo=Math.max(B.maxCombo,B.combo);
-    if(!o.noGauge){ const g0=p.gauge; p.gauge=Math.min(100,p.gauge+(o.gauge||6)+Math.min(4,Math.floor(B.combo/5)));
+    if(!o.noGauge){ const g0=p.gauge; p.gauge=Math.min(100,p.gauge+((o.gauge||6)+Math.min(4,Math.floor(B.combo/5)))*(has("ug")?1.5:1));
       if(g0<100&&p.gauge>=100){ sfx.ready(); UI.ultReady(); } }
     const hx=en.x-(Math.sign(en.x-p.x)||1)*B.ehw*.3, hy=GY-e.h*.5;
     const sd=SWORDS[p.rank];
@@ -210,7 +250,7 @@ const Battle=(()=>{
     }
     d=Math.max(1,Math.round(d));
     p.hp=Math.max(0,p.hp-d); p.hurt=.4; B.taken+=d;
-    p.gauge=Math.min(100,p.gauge+5);
+    p.gauge=Math.min(100,p.gauge+5*(has("ug")?1.5:1));
     B.shake=Math.max(B.shake,10); B.red=.55; B.stop=Math.max(B.stop,.05);
     sfx.hurt(); buzz(35);
     dmgNum(fx,p.x,GY-140,d,{c1:"#ffe0e0",c2:"#ff3b5c",size:40});
@@ -256,7 +296,7 @@ const Battle=(()=>{
       if(Math.abs(p.x-cxp)<=len/2+26){ hurtPlayer(en.atk); if(tier>=11&&p.inv<=0)p.x=clamp(p.x+Math.sign(p.x-cxp||1)*70,B.L,B.R); }
     }else if(kind==="shot"){
       const n=tier>=16?3:1; sfx.shoot();
-      for(let i=0;i<n;i++)B.shots.push({x:en.x+en.face*(20+B.ehw*.4),y:GY-60-i*26-Math.min(40,e.h*.15),vx:en.face*(320+i*40),dmg:en.atk*.7,own:"e",type:sk,rot:0});
+      for(let i=0;i<n;i++)B.shots.push({x:en.x+en.face*(20+B.ehw*.4),y:GY-60-i*26-Math.min(40,e.h*.15),vx:en.face*(320+i*40),dmg:en.atk*(n>1?.5:.7),own:"e",type:sk,rot:0});
       en.cd=.8; en.swing=.6;
     }else if(kind==="wave"){
       B.waves.push({x:en.x+en.face*(20+B.ehw*.4),vx:en.face*400,dmg:en.atk*1.1,own:"e",t:0});
@@ -333,7 +373,8 @@ const Battle=(()=>{
     S.gold+=gain; if(first)S.cleared=idx+1; S.wins=(S.wins||0)+1;
     save();
     const r={win:true,e,idx,gain,first,stars:st,newBest,combo:B.maxCombo,hits:B.hits,ults:B.ults,hp:B.p.hp,max:B.p.max};
-    if(first&&idx===ENEMIES.length-1)UI.ending(()=>UI.result(r));
+    if(first&&idx===ENEMIES.length-1)UI.ending("true",()=>UI.result(r));
+    else if(first&&idx===MAIN-1)UI.ending("main",()=>UI.result(r));
     else UI.result(r);
   }
   function finishLose(){
@@ -553,7 +594,7 @@ const Battle=(()=>{
       c.fillStyle=OL; circle(c,-4,-3,2.4); c.fill(); circle(c,4,-3,2.4); c.fill(); }
     else if(t==="web"){ circle(c,0,0,13); fs(c,"#dfffb8",3); c.strokeStyle=OL; c.lineWidth=1.6; c.beginPath(); for(let i=0;i<4;i++){ const a=i*Math.PI/4; c.moveTo(Math.cos(a)*13,Math.sin(a)*13); c.lineTo(-Math.cos(a)*13,-Math.sin(a)*13);} c.stroke(); }
     else if(t==="beam"){ c.rotate(-(s.rot||0)); c.scale(Math.sign(s.vx)||1,1); c.beginPath(); c.arc(-10,0,22,-1.1,1.1); c.arc(-18,0,18,1.0,-1.0,true); c.closePath(); fs(c,"#fff6c8",3); }
-    else if(t==="fire"){ c.rotate(-(s.rot||0)); c.scale(Math.sign(s.vx)||1,1); c.beginPath(); c.moveTo(16,0); c.quadraticCurveTo(6,-16,-20,-6); c.quadraticCurveTo(-8,0,-20,6); c.quadraticCurveTo(6,16,16,0); c.closePath(); fs(c,"#ff8a3c",3); circle(c,6,0,6); c.fillStyle="#ffe08a"; c.fill(); }
+    else if(t==="fire"||t==="bfire"){ const bl=t==="bfire"; c.rotate(-(s.rot||0)); c.scale(Math.sign(s.vx)||1,1); c.beginPath(); c.moveTo(16,0); c.quadraticCurveTo(6,-16,-20,-6); c.quadraticCurveTo(-8,0,-20,6); c.quadraticCurveTo(6,16,16,0); c.closePath(); fs(c,bl?"#3fa8ff":"#ff8a3c",3); circle(c,6,0,6); c.fillStyle=bl?"#d8f6ff":"#ffe08a"; c.fill(); }
     else { circle(c,0,0,12); fs(c,col,3.4); circle(c,-4,-4,4); c.fillStyle="rgba(255,255,255,.8)"; c.fill(); }
     c.restore();
   }
@@ -632,6 +673,6 @@ const Battle=(()=>{
   function quit(){ if(!B)return; B.paused=false; B.over=true; Music.stop(.2); }
   function end(){ B=null; fx.clear(); }
 
-  return {start,update,draw,attack,useSkill,useUlt,ultReady,setKey,skipIntro,pause,resume,quit,end,
+  return {start,update,draw,attack,useSkill,useUlt,ultReady,useWaza,pickWaza,setKey,skipIntro,pause,resume,quit,end,
     get B(){ return B; }, stageView:()=>stage};
 })();

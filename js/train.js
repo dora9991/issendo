@@ -18,7 +18,7 @@ const Train=(()=>{
     Music.play("train");
   }
   function tap(){
-    if(!T||T.done)return;
+    if(!T||T.done||T.ff)return;
     if(T.t<0){ return; }
     if(T.kind==="suburi"){
       if(T.t-T.lastTap<.075)return;
@@ -42,9 +42,10 @@ const Train=(()=>{
       if(T.taps===15){ onoma(fx,W/2,GY-260,"ぼーなす！",{size:56,layer:"ui",grad:["#fff","#ff8fb1"],rot:0}); sfx.ready(); }
     }
   }
+  /* はやおくり：じぶん で ふる・とぶ を 2.5ばい の はやさ で みる（ぼーなす は なし） */
   function skip(){
-    if(!T||T.done)return;
-    T.skipped=true; finish();
+    if(!T||T.done||T.ff)return;
+    T.skipped=true; T.ff=true; UI.trainFF();
   }
   function finish(){
     if(T.done)return;
@@ -59,7 +60,7 @@ const Train=(()=>{
     save();
     sfx.buy();
     Burst.confetti(fx,View.W,40);
-    UI.trainResult({kind:T.kind,gain,bonus,mult:m,taps:T.taps,cleared:T.cleared,evolved:evolved?after:-1,before});
+    UI.trainResult({kind:T.kind,gain,bonus,mult:m,taps:T.taps,cleared:T.cleared,evolved:evolved?after:-1,before,skipped:!!T.skipped});
   }
 
   function update(dt){
@@ -70,6 +71,7 @@ const Train=(()=>{
     h.swing=Math.max(0,h.swing-dt*4.5);
     T.dummyHit=Math.max(0,T.dummyHit-dt*2.4);
     if(T.done){ return; }
+    if(T.ff)dt*=2.5;
     const prevT=T.t; T.t+=dt;
     if(prevT<-.4&&T.t>=-.4){ onoma(fx,W/2,GY-230,"よーい…",{size:54,layer:"ui",rot:0,rise:0,life:.5}); }
     if(prevT<0&&T.t>=0){ onoma(fx,W/2,GY-230,"はじめ！",{size:70,layer:"ui",rot:0,rise:0,life:.7}); sfx.go(); }
@@ -87,6 +89,7 @@ const Train=(()=>{
       T.nextObs-=dt;
       if(T.nextObs<=0&&T.t<T.dur-.9){ T.nextObs=rnd(.95,1.3); T.obs.push({x:W+40,kind:pick(["rock","log","hurdle"]),hit:false,passed:false}); }
       const hx=W*.3;
+      if(T.ff&&h.air<=0&&h.trip<=0&&T.obs.some(o=>!o.passed&&!o.hit&&o.x-hx>40&&o.x-hx<95)){ h.air=.62; sfx.jump(); }
       for(const o of T.obs){
         o.x-=speed*dt;
         if(!o.hit&&!o.passed&&Math.abs(o.x-hx)<26){

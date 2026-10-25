@@ -3,9 +3,11 @@
    おと — こうかおん（WebAudio で ごうせい）＋ おんがく（ちっぷちゅーん）＋ こえ
    ========================================================== */
 let AC=null, MASTER=null, SFXG=null, MUSG=null, NOISE=null;
+const MUTE_ALL=/[?&]mute=1/.test(location.search);   /* かくにん よう：おと を いっさい ださない */
 const PULSE={};
 
 function acInit(){
+  if(MUTE_ALL)return null;
   if(AC)return AC;
   try{
     const C=window.AudioContext||window.webkitAudioContext; if(!C)return null;
@@ -277,6 +279,29 @@ const SONGS={
       "Bb1 Bb1 Bb2 Bb1 Bb1 Bb2 Bb1 Bb2","C2 C2 C3 C2 C2 C3 C2 C3","G1 G1 G2 G1 G1 G2 G1 G2","A1 A1 A2 A1 A1 A2 A1 A2")},
     {i:"drum",v:.52,s:B8(rep("k+h k s+h k k+h k s+h h",7),"k s k s s s s s",rep("k+h k s+h k k+h k s+h h",7),"k+c s s s s s t t")},
   ]},
+  /* ほんとう の さいご（むげん の まおう） Cm */
+  shin:{bpm:178,spb:2,loop:true,tracks:[
+    {i:"lead2",v:.17,s:B8(
+      "C5 - G4 - C5 - Eb5 -","Eb5 - C5 - Ab4 - C5 -","D5 - - F5 Eb5 - D5 -","B4 - - - D5 - G5 -",
+      "C6 - Bb5 - G5 - Eb5 -","Eb5 - C5 - Ab4 - Eb5 -","F5 - Ab5 - G5 - B5 -","C6 - - - G5 - C5 -",
+      "Ab5 - G5 - Eb5 - C5 -","Bb5 - Ab5 - F5 - D5 -","G5 - Bb5 - D6 - Bb5 -","C6 - - - G5 - Eb5 -",
+      "C6 - Bb5 - Ab5 - Eb5 -","D6 - C6 - Bb5 - F5 -","B5 - D6 - G6 - D6 -","G5 - F5 - Eb5 - D5 -")},
+    {i:"harm",v:.07,s:B8(
+      chordBar("C4+G4","X . X X . X . X"),chordBar("Ab3+Eb4","X . X X . X . X"),chordBar("Bb3+F4","X . X X . X . X"),chordBar("B3+D4+G4","X . X X . X . X"),
+      chordBar("C4+G4","X . X X . X . X"),chordBar("Ab3+Eb4","X . X X . X . X"),"F3+C4 . F3+C4 F3+C4 B3+D4+G4 . B3+D4+G4 .",chordBar("C4+G4","X . X X . X . X"),
+      chordBar("Ab3+Eb4","X . X X . X . X"),chordBar("Bb3+F4","X . X X . X . X"),chordBar("G3+D4","X . X X . X . X"),chordBar("C4+G4","X . X X . X . X"),
+      chordBar("Ab3+Eb4","X . X X . X . X"),chordBar("Bb3+F4","X . X X . X . X"),chordBar("B3+D4+G4","X . X X . X . X"),chordBar("B3+D4+G4","X . X X . X . X"))},
+    {i:"arp",v:.04,s:B8(rep("C5 Eb5 G5 Eb5",2),rep("Ab4 C5 Eb5 C5",2),rep("Bb4 D5 F5 D5",2),rep("G4 B4 D5 B4",2),
+      rep("C5 Eb5 G5 Eb5",2),rep("Ab4 C5 Eb5 C5",2),"F4 Ab4 C5 Ab4 G4 B4 D5 B4",rep("C5 Eb5 G5 Eb5",2),
+      rep("Ab4 C5 Eb5 C5",2),rep("Bb4 D5 F5 D5",2),rep("G4 Bb4 D5 Bb4",2),rep("C5 Eb5 G5 Eb5",2),
+      rep("Ab4 C5 Eb5 C5",2),rep("Bb4 D5 F5 D5",2),rep("G4 B4 D5 B4",4))},
+    {i:"bass",v:.17,s:B8(
+      "C2 C2 C3 C2 C2 C3 C2 C3","Ab1 Ab1 Ab2 Ab1 Ab1 Ab2 Ab1 Ab2","Bb1 Bb1 Bb2 Bb1 Bb1 Bb2 Bb1 Bb2","G1 G1 G2 G1 G1 G2 G1 G2",
+      "C2 C2 C3 C2 C2 C3 C2 C3","Ab1 Ab1 Ab2 Ab1 Ab1 Ab2 Ab1 Ab2","F1 F1 F2 F1 G1 G1 G2 G1","C2 C2 C3 C2 C2 C3 C2 C3",
+      "Ab1 Ab1 Ab2 Ab1 Ab1 Ab2 Ab1 Ab2","Bb1 Bb1 Bb2 Bb1 Bb1 Bb2 Bb1 Bb2","G1 G1 G2 G1 G1 G2 G1 G2","C2 C2 C3 C2 C2 C3 C2 C3",
+      "Ab1 Ab1 Ab2 Ab1 Ab1 Ab2 Ab1 Ab2","Bb1 Bb1 Bb2 Bb1 Bb1 Bb2 Bb1 Bb2",rep("G1 G1 G2 G1 G1 G2 G1 G2",2))},
+    {i:"drum",v:.52,s:B8(rep("k+h k s+h k k+h k s+h h",7),"k s k s s s t t",rep("k+h k s+h k k+h k s+h h",7),"k+c s s s s s t t")},
+  ]},
   /* かった！ */
   win:{bpm:150,spb:4,loop:false,tracks:[
     {i:"lead",v:.2,s:"G4 C5 E5 G5 - - - - E5 - G5 - - - - - A4 D5 F5 A5 - - - - F5 - A5 - B5 - - - C6 - - - - - - - - - - - . . . ."},
@@ -375,9 +400,9 @@ const Voice=(()=>{
   }
   if(ok){ choose(); try{ speechSynthesis.onvoiceschanged=choose; }catch(e){} }
   return {
-    unlock(){ if(!ok)return; try{ const u=new SpeechSynthesisUtterance(" "); u.volume=0; speechSynthesis.speak(u); }catch(e){} },
+    unlock(){ if(!ok||MUTE_ALL)return; try{ const u=new SpeechSynthesisUtterance(" "); u.volume=0; speechSynthesis.speak(u); }catch(e){} },
     say(text,o){
-      if(!ok||!S.voice)return;
+      if(!ok||!S.voice||MUTE_ALL)return;
       try{
         speechSynthesis.cancel();
         const u=new SpeechSynthesisUtterance(text);

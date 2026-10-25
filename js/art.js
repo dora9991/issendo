@@ -98,10 +98,14 @@ function drawSword(c,rank,len,t,o){
   /* は */
   c.beginPath(); c.moveTo(6,-3.8); c.quadraticCurveTo(L*.55,-5.6,L,-1.2); c.lineTo(L+4,.6); c.quadraticCurveTo(L*.55,3.4,6,3.8); c.closePath();
   let fill=sd.blade;
-  if(rank===5){ const g=c.createLinearGradient(6,0,L,0), h=(t*120)%360;
-    for(let i=0;i<=5;i++)g.addColorStop(i/5,"hsl("+((h+i*60)%360)+",95%,72%)"); fill=g; }
-  else if(rank===3){ const g=c.createLinearGradient(6,0,L,0); g.addColorStop(0,"#ffe08a"); g.addColorStop(1,"#ff7a2e"); fill=g; }
-  else if(rank===4){ const g=c.createLinearGradient(6,0,L,0); g.addColorStop(0,"#ffffff"); g.addColorStop(1,"#ffe14d"); fill=g; }
+  const grad=(a,b)=>{ const g=c.createLinearGradient(6,0,L,0); g.addColorStop(0,a); g.addColorStop(1,b); return g; };
+  if(rank===5||rank===9){ const g=c.createLinearGradient(6,0,L,0), h=(t*120)%360;
+    for(let i=0;i<=5;i++)g.addColorStop(i/5,"hsl("+((h+i*60)%360)+",95%,"+(rank===9?80:72)+"%)"); fill=g; }
+  else if(rank===3)fill=grad("#ffe08a","#ff7a2e");
+  else if(rank===4)fill=grad("#ffffff","#ffe14d");
+  else if(rank===6)fill=grad("#ffffff","#8fc4ff");
+  else if(rank===7)fill=grad("#fffbe0","#ffb000");
+  else if(rank===8)fill=grad("#f0fff8","#1fbf8f");
   fs(c,fill,3);
   /* はもん の ひかり */
   c.strokeStyle=rank===0?"rgba(255,255,255,.35)":"rgba(255,255,255,.9)"; c.lineWidth=1.8;
@@ -110,6 +114,11 @@ function drawSword(c,rank,len,t,o){
   if(rank>=2&&!o.noGlow){ /* きらり */
     const gx=((t*.6)%1.6)/1.6*(L+30)-10;
     if(gx>6&&gx<L){ c.save(); c.globalCompositeOperation="lighter"; c.fillStyle="#fff"; star(c,gx,-1,5,4,.25,t*3); c.fill(); c.restore(); }
+  }
+  if((rank===6||rank===9)&&!o.noGlow){ /* ほし の つぶ */
+    c.save(); c.globalCompositeOperation="lighter"; c.fillStyle=rank===9?"#fff3a0":"#dff0ff";
+    for(let i=0;i<3;i++){ const k=((t*.8+i/3)%1); star(c,10+k*(L-10),Math.sin(t*5+i*2)*6,3+2*Math.sin(t*9+i),4,.3,t*4+i); c.fill(); }
+    c.restore();
   }
   if(rank===4&&!o.noGlow&&Math.sin(t*23)>.3){ /* でんき */
     c.save(); c.strokeStyle="#fff7a0"; c.lineWidth=1.6; c.globalCompositeOperation="lighter"; c.beginPath();
@@ -390,9 +399,11 @@ function drawHeroSprite(c,x,gy,o){
     c.save(); c.globalCompositeOperation="lighter";
     const n=6, pulse=.5+Math.sin(t*6)*.15;
     for(let i=1;i<=n;i++){ const k=i/n, px=lerp(X1,X2,k), py=lerp(Y1,Y2,k);
-      let col=sd.glow; if(rank===5)col="hsl("+((t*140+i*50)%360)+",95%,70%)";
-      c.globalAlpha=pulse*(rank>=3?.85:.55); c.drawImage(glowSprite(rank===5?"#ffffff":col),px-16,py-16,32,32);
-      if(rank===5){ c.globalAlpha=.35; c.fillStyle=col; circle(c,px,py,6); c.fill(); } }
+      const rb=rank===5||rank===9;
+      let col=sd.glow; if(rb)col="hsl("+((t*140+i*50)%360)+",95%,70%)";
+      c.globalAlpha=pulse*(rank>=3?.85:.55); c.drawImage(glowSprite(rb?"#ffffff":col),px-16,py-16,32,32);
+      if(rb){ c.globalAlpha=.35; c.fillStyle=col; circle(c,px,py,6); c.fill(); }
+      if((rank===6||rank===9)&&i%2===0){ c.globalAlpha=.8; c.fillStyle="#ffffff"; star(c,px+Math.sin(t*7+i)*5,py+Math.cos(t*6+i)*5,4,4,.3,t*3); c.fill(); } }
     if(rank===4&&Math.sin(t*23)>.2){ c.globalAlpha=.9; c.strokeStyle="#fff7a0"; c.lineWidth=2; c.beginPath(); c.moveTo(X1,Y1);
       for(let i=1;i<=6;i++){ const k=i/6; c.lineTo(lerp(X1,X2,k)+(Math.random()-.5)*12,lerp(Y1,Y2,k)+(Math.random()-.5)*12); } c.stroke(); }
     c.restore();
